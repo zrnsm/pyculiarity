@@ -1,11 +1,15 @@
 """
-Pyculiarity
------------
+pyculiarity
 
-A Python port of Twitter's AnomalyDetection R Package.
+A Python port of Twitter's AnomalyDetection R Package. Usage details and source available here: https://github.com/nicolasmiller/pyculiarity.
 
-The original R source is available here:
-https://github.com/twitter/AnomalyDetection.
+The original R source and examples are available here: https://github.com/twitter/AnomalyDetection.
+
+Copyright and License
+Python port Copyright 2015 Nicolas Steven Miller
+Original R source Copyright 2015 Twitter, Inc and other contributors
+
+Licensed under the GPLv3
 """
 
 from setuptools import setup, find_packages
@@ -13,7 +17,7 @@ from setuptools import setup, find_packages
 setup(
     name='pyculiarity',
     version='0.0.1a1',
-    description='A sample Python project',
+    description='A Python port of Twitter\'s AnomalyDetection R Package.',
     long_description=__doc__,
     url='https://github.com/nicolasmiller/pyculiarity',
     author='Nicolas Steven Miller',
@@ -23,7 +27,7 @@ setup(
     classifiers=[
         'Development Status :: 3 - Alpha',
         'Intended Audience :: Developers',
-        'Topic :: Scientific/Engineering'
+        'Topic :: Scientific/Engineering',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 2.7',
     ],
