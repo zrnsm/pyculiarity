@@ -248,9 +248,6 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
     # if plot:
     #     plot_something()
 
-#    print 'wtf'
-#    print all_anoms
-
     if e_value:
         d = {
             'timestamp': all_anoms.timestamp,
