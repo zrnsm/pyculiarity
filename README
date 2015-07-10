@@ -1,14 +1,14 @@
 # pyculiarity
-A Python port of Twitter's AnomalyDetection R Package.
+A Python port of Twitter's AnomalyDetection R Package. The original source and examples are available here: https://github.com/twitter/AnomalyDetection.
 
 ## Usage
 
 The package currently requires rpy2 in order to use R's stl function. A
-working R installation must be available. In the future, we'll move to a proper
+working R installation must be available. In the future, we'll move to an
 stl implementation that doesn't require R.
 One candidate for this is https://github.com/andreas-h/pyloess.
 
-As in Twitter's package, there are two top level functions, one for timeseries data (detect_ts) and one for simple vector processing (detect_vs). The first one expects a two-column Pandas DataFrame consisting of timestamps and values. The second expects either a
+As in Twitter's package, there are two top level functions, one for timeseries data and one for simple vector processing, detect_ts and detect_vec respectively. The first one expects a two-column Pandas DataFrame consisting of timestamps and values. The second expects either a
 single-column DataFrame or a Series.
 
 Here's an example of loading Twitter's example data (included in the tests directory) with Pandas and passing it to Pyculiarity for processing.
