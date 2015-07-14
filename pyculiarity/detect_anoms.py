@@ -30,6 +30,9 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
     if num_obs_per_period is None:
         raise ValueError("must supply period length for time series decomposition")
 
+    if list(data.columns.values) != ["timestamp", "value"]:
+        data.columns = ["timestamp", "value"]
+
     num_obs = len(data)
 
     # Check to make sure we have at least two periods worth of data for anomaly context
@@ -42,7 +45,7 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
     # run length encode result of isnull, check for internal nulls
     if (len(map(lambda x: x[0], list(groupby(ps.isnull(
             ps.concat([ps.Series([np.nan]),
-                       data.iloc[:,1],
+                       data.value,
                        ps.Series([np.nan])])))))) > 3):
         raise ValueError("Data contains non-leading NAs. We suggest replacing NAs with interpolated values (see na.approx in Zoo package).")
     else:
@@ -58,21 +61,24 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
             24: 'H',
             7: 'D'
         }
-        data = data.resample(resample_period[num_obs_per_period])
+        resample_period = resample_period.get(num_obs_per_period)
+        if not resample_period:
+            raise ValueError('Unsupported resample period: %d' % resample_period)
+        data = data.resample(resample_period)
 
 
-    decomp = stl(data['count'], "periodic", np=num_obs_per_period)
+    decomp = stl(data.value, "periodic", np=num_obs_per_period)
 
     # Remove the seasonal component, and the median of the data to create the univariate remainder
     d = {
         'timestamp': data.index,
-        'count': data['count'] - decomp['seasonal'] - data['count'].median()
+        'value': data.value - decomp['seasonal'] - data.value.median()
     }
     data = ps.DataFrame(d)
 
     p = {
         'timestamp': decomp.index,
-        'count': (decomp['trend'] + decomp['seasonal']).truncate().convert_objects(convert_numeric=True)
+        'value': (decomp['trend'] + decomp['seasonal']).truncate().convert_objects(convert_numeric=True)
     }
     data_decomp = ps.DataFrame(p)
 
@@ -83,7 +89,7 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
         raise ValueError("With longterm=TRUE, AnomalyDetection splits the data into 2 week periods by default. You have %d observations in a period, which is too few. Set a higher piecewise_median_period_weeks." % num_obs)
 
     ## Define values and vectors.
-    n = len(data.iloc[:,0])
+    n = len(data.timestamp)
     R_idx = range(max_outliers)
 
     num_anoms = 0
@@ -93,14 +99,14 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
     for i in range(1, max_outliers + 1):
         if one_tail:
             if upper_tail:
-                ares = data['count'] - data['count'].median()
+                ares = data.value - data.value.median()
             else:
-                ares = data['count'].median() - data['count']
+                ares = data.value.median() - data.value
         else:
-            ares = (data['count'] - data['count'].median()).abs()
+            ares = (data.value - data.value.median()).abs()
 
         # protect against constant time series
-        data_sigma = mad(data['count'])
+        data_sigma = mad(data.value)
         if data_sigma == 0:
             break
 

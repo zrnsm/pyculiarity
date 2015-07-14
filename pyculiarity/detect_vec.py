@@ -1,9 +1,8 @@
 # -*- coding: utf-8 -*-
 from collections import namedtuple
-from date_utils import format_timestamp, get_gran, date_format, datetimes_from_ts
 from detect_anoms import detect_anoms
 from math import ceil
-from pandas import DataFrame, Series, to_datetime
+from pandas import DataFrame, Series
 from pandas.lib import Timestamp
 import numpy as np
 
@@ -75,13 +74,13 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
         df.iloc[:,0].applymap(np.isreal).all(1)):
         d = {
             'timestamp': range(len(df.iloc[:,0])),
-            'count': df.iloc[:,0]
+            'value': df.iloc[:,0]
         }
         df = DataFrame(d, index=d['timestamp'])
     elif isinstance(df, Series):
         d = {
             'timestamp': range(len(df)),
-            'count': df
+            'value': df
         }
         df = DataFrame(d, index=d['timestamp'])
     else:
@@ -89,7 +88,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
                           "list, or vector that holds numeric values."))
 
     if max_anoms > 0.49:
-        length = len(df.iloc[:,1])
+        length = len(df.value)
         raise ValueError(
             ("max_anoms must be less than 50% of "
              "the data points (max_anoms =%f data_points =%s).")
@@ -139,7 +138,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
 
       # -- Main analysis: Perform S-H-ESD
 
-    num_obs = len(df['count'])
+    num_obs = len(df.value)
 
     clamp = (1 / float(num_obs))
     if max_anoms < clamp:
@@ -151,24 +150,24 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
     # data frames and store in all_data,
 
     if longterm_period:
-        all_data = range(int(ceil(len(df['count']) / float(longterm_period))))
+        all_data = []
         for j in range(0, len(df.timestamp), longterm_period):
             start_index = df.timestamp.iget(j)
             end_index = min((start_index + longterm_period), num_obs)
             if (end_index - start_index) == longterm_period:
-                all_data[int(ceil(j / float(longterm_period)))] = df[
-                    (df.timestamp >= start_index) & (df.timestamp <= end_index)]
+                sub_df = df[(df.timestamp >= start_index)
+                            & (df.timestamp <= end_index)]
             else:
-                all_data[int(ceil(j / float(longterm_period)))] = df[
-                    (df.timestamp >= (num_obs - longterm_period)) &
-                    (df.timestamp <= num_obs)]
+                sub_df = df[(df.timestamp >= (num_obs - longterm_period)) &
+                            (df.timestamp <= num_obs)]
+            all_data.append(sub_df)
     else:
         all_data = [df]
 
     # Create empty data frames to store all anoms and
     # seasonal+trend component from decomposition
-    all_anoms = DataFrame(columns=['timestamp', 'count'])
-    seasonal_plus_trend = DataFrame(columns=['timestamp', 'count'])
+    all_anoms = DataFrame(columns=['timestamp', 'value'])
+    seasonal_plus_trend = DataFrame(columns=['timestamp', 'value'])
 
     # Detect anomalies on all data (either entire data in one-pass,
     # or in 2 week blocks if longterm=TRUE)
@@ -198,7 +197,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
         if s_h_esd_timestamps:
             anoms = all_data[i][all_data[i].timestamp.isin(s_h_esd_timestamps)]
         else:
-            anoms = DataFrame(columns=['timestamp', 'count'])
+            anoms = DataFrame(columns=['timestamp', 'value'])
 
 
         # Filter the anomalies using one of the thresholding
@@ -209,7 +208,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
                 group = all_data[i].timestamp.map(lambda t: t / period)
             else:
                 group = all_data[i].timestamp.map(Timestamp.date)
-            periodic_maxes = df.groupby(group).aggregate(np.max)['count']
+            periodic_maxes = df.groupby(group).aggregate(np.max).value
 
             # Calculate the threshold set by the user
             if threshold == 'med_max':
@@ -220,7 +219,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
                 thresh = periodic_maxes.quantile(.99)
 
             # Remove any anoms below the threshold
-            anoms = anoms[anoms['count'] >= thresh]
+            anoms = anoms[anoms.value >= thresh]
 
         all_anoms = all_anoms.append(anoms)
         seasonal_plus_trend = seasonal_plus_trend.append(data_decomp)
@@ -235,7 +234,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
     if only_last:
         d = {
             'timestamp': df.timestamp.iloc[-period:],
-            'count': df['count'].iloc[-period:]
+            'value': df.value.iloc[-period:]
         }
         x_subset_single_period = DataFrame(d, index = d['timestamp'])
         past_obs = period * 7
@@ -244,16 +243,16 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
         # When plotting anoms for the last period only we only show
         # the previous 7 periods of data
         d = {
-            'timestamp': df.iloc[:,0].iloc[-past_obs:-period],
-            'count': df['count'].iloc[-past_obs:-period]
+            'timestamp': df.timestamp.iloc[-past_obs:-period],
+            'value': df.value.iloc[-past_obs:-period]
         }
         x_subset_previous = DataFrame(d, index=d['timestamp'])
         all_anoms = all_anoms[all_anoms.timestamp
                               >= x_subset_single_period.timestamp.iget(0)]
-        num_obs = len(x_subset_single_period['count'])
+        num_obs = len(x_subset_single_period.value)
 
     # Calculate number of anomalies as a percentage
-    anom_pct = (len(df.iloc[:,1]) / float(num_obs)) * 100
+    anom_pct = (len(df.value) / float(num_obs)) * 100
 
     if anom_pct == 0:
         return {
@@ -266,17 +265,20 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
     # if plot:
     #     plot_something()
 
+    all_anoms.index = all_anoms.timestamp
+
     if e_value:
         d = {
             'timestamp': all_anoms.timestamp,
-            'anoms': all_anoms['count'],
-            'expected_value': seasonal_plus_trend.iloc[:,1][
-                seasonal_plus_trend.timestamp.isin(all_anoms.timestamp)]
+            'anoms': all_anoms.value,
+            'expected_value': seasonal_plus_trend[
+                seasonal_plus_trend.timestamp.isin(
+                    all_anoms.timestamp)].value
         }
     else:
         d = {
             'timestamp': all_anoms.timestamp,
-            'anoms': all_anoms['count']
+            'anoms': all_anoms.value
         }
     anoms = DataFrame(d, index=d['timestamp'].index)
 

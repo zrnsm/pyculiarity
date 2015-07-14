@@ -19,7 +19,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
     """
     Anomaly Detection Using Seasonal Hybrid ESD Test
     A technique for detecting anomalies in seasonal univariate time series where the input is a
-    series of <timestamp, count> pairs.
+    series of <timestamp, value> pairs.
 
     Args:
 
@@ -83,12 +83,12 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
             and not (df.dtypes[0].type is np.int64)):
             df = format_timestamp(df)
 
-    if list(df.columns.values) != ["timestamp", "count"]:
-        df.columns = ["timestamp", "count"]
+    if list(df.columns.values) != ["timestamp", "value"]:
+        df.columns = ["timestamp", "value"]
 
     # Sanity check all input parameters
     if max_anoms > 0.49:
-        length = len(df.iloc[:,1])
+        length = len(df.value)
         raise ValueError(
             ("max_anoms must be less than 50% of "
              "the data points (max_anoms =%f data_points =%s).")
@@ -159,8 +159,10 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         'hr': 24,
         'day': 7
     }
-    period = gran_period[gran]
-    num_obs = len(df['count'])
+    period = gran_period.get(gran)
+    if not period:
+        raise ValueError('%s granularity detected. This is currently not supported.' % gran)
+    num_obs = len(df.value)
 
     clamp = (1 / float(num_obs))
     if max_anoms < clamp:
@@ -176,7 +178,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
 
         last_date = df.timestamp.iget(-1)
 
-        all_data = range(int(ceil(len(df['count']) / float(num_obs_in_period))))
+        all_data = []
 
         for j in range(0, len(df.timestamp), num_obs_in_period):
             start_date = df.timestamp.iget(j)
@@ -187,18 +189,18 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
             # if there is at least 14 days left, subset it,
             # otherwise subset last_date - 14days
             if (end_date - start_date).days == num_days_in_period:
-                all_data[int(ceil(j / num_obs_in_period))] = df[
-                    (df.timestamp >= start_date) & (df.timestamp < end_date)]
+                sub_df = df[(df.timestamp >= start_date)
+                            & (df.timestamp < end_date)]
             else:
-                all_data[int(ceil(j / num_obs_in_period))] = df[
-                    (df.timestamp >
+                sub_df = df[(df.timestamp >
                      (last_date - datetime.timedelta(days=num_days_in_period)))
                     & (df.timestamp <= last_date)]
+            all_data.append(sub_df)
     else:
         all_data = [df]
 
-    all_anoms = DataFrame(columns=['timestamp', 'count'])
-    seasonal_plus_trend = DataFrame(columns=['timestamp', 'count'])
+    all_anoms = DataFrame(columns=['timestamp', 'value'])
+    seasonal_plus_trend = DataFrame(columns=['timestamp', 'value'])
 
     # Detect anomalies on all data (either entire data in one-pass,
     # or in 2 week blocks if longterm=TRUE)
@@ -232,13 +234,13 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         if s_h_esd_timestamps:
             anoms = all_data[i][all_data[i].timestamp.isin(s_h_esd_timestamps)]
         else:
-            anoms = DataFrame(columns=['timestamp', 'count'])
+            anoms = DataFrame(columns=['timestamp', 'value'])
 
         # Filter the anomalies using one of the thresholding functions if applicable
         if threshold:
             # Calculate daily max values
             periodic_maxes = df.groupby(
-                df.timestamp.map(Timestamp.date)).aggregate(np.max)['count']
+                df.timestamp.map(Timestamp.date)).aggregate(np.max).value
 
             # Calculate the threshold set by the user
             if threshold == 'med_max':
@@ -249,7 +251,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
                 thresh = periodic_maxes.quantile(.99)
 
             # Remove any anoms below the threshold
-            anoms = anoms[anoms['count'] >= thresh]
+            anoms = anoms[anoms.value >= thresh]
 
         all_anoms = all_anoms.append(anoms)
         seasonal_plus_trend = seasonal_plus_trend.append(data_decomp)
@@ -287,10 +289,10 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         if len(all_anoms) > 0:
             all_anoms = all_anoms[all_anoms.timestamp >=
                                   x_subset_single_day.timestamp.iget(0)]
-        num_obs = len(x_subset_single_day['count'])
+        num_obs = len(x_subset_single_day.value)
 
     # Calculate number of anomalies as a percentage
-    anom_pct = (len(df.iloc[:,1]) / float(num_obs)) * 100
+    anom_pct = (len(df.value) / float(num_obs)) * 100
 
     if anom_pct == 0:
         return {
@@ -303,17 +305,20 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
     # if plot:
     #     plot_something()
 
+    all_anoms.index = all_anoms.timestamp
+
     if e_value:
         d = {
             'timestamp': all_anoms.timestamp,
-            'anoms': all_anoms['count'],
-            'expected_value': seasonal_plus_trend.iloc[:,1][
-                seasonal_plus_trend.timestamp.isin(all_anoms.timestamp)]
+            'anoms': all_anoms.value,
+            'expected_value': seasonal_plus_trend[
+                seasonal_plus_trend.timestamp.isin(
+                    all_anoms.timestamp)].value
         }
     else:
         d = {
             'timestamp': all_anoms.timestamp,
-            'anoms': all_anoms['count']
+            'anoms': all_anoms.value
         }
     anoms = DataFrame(d, index=d['timestamp'].index)
 
