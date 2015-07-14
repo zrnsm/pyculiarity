@@ -14,6 +14,61 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
                threshold=None, e_value=False, longterm_period=None,
                plot=False, y_log=False, xlabel='', ylabel='count',
                title=None, verbose=False):
+    """
+    Anomaly Detection Using Seasonal Hybrid ESD Test
+
+    A technique for detecting anomalies in seasonal univariate time series where the input is a
+    series of observations.
+
+    Args:
+    x: Time series as a column data frame, list, or vector, where the column consists of
+    the observations.
+
+    max_anoms: Maximum number of anomalies that S-H-ESD will detect as a percentage of the
+    data.
+
+    direction: Directionality of the anomalies to be detected. Options are: ('pos' | 'neg' | 'both').
+
+    alpha: The level of statistical significance with which to accept or reject anomalies.
+    period: Defines the number of observations in a single period, and used during seasonal
+    decomposition.
+
+    only_last: Find and report anomalies only within the last period in the time series.
+    threshold: Only report positive going anoms above the threshold specified. Options are: ('None' | 'med_max' | 'p95' | 'p99').
+
+    e_value: Add an additional column to the anoms output containing the expected value.
+
+    longterm_period: Defines the number of observations for which the trend can be considered
+    flat. The value should be an integer multiple of the number of observations in a single period.
+    This increases anom detection efficacy for time series that are greater than a month.
+
+    plot: (Currently unsupported) A flag indicating if a plot with both the time series and the estimated anoms,
+    indicated by circles, should also be returned.
+
+    y_log: Apply log scaling to the y-axis. This helps with viewing plots that have extremely
+    large positive anomalies relative to the rest of the data.
+
+    xlabel: X-axis label to be added to the output plot.
+    ylabel: Y-axis label to be added to the output plot.
+
+    Details
+
+    'longterm_period' This option should be set when the input time series is longer than a month.
+    The option enables the approach described in Vallis, Hochenbaum, and Kejariwal (2014).
+
+    'threshold' Filter all negative anomalies and those anomalies whose magnitude is smaller
+    than one of the specified thresholds which include: the median
+    of the daily max values (med_max), the 95th percentile of the daily max values (p95), and the
+    99th percentile of the daily max values (p99).
+
+    'title' Title for the output plot.
+    'verbose' Enable debug messages
+
+    The returned value is a dictionary with the following components:
+      anoms: Data frame containing index, values, and optionally expected values.
+      plot: A graphical object if plotting was requested by the user. The plot contains
+    the estimated anomalies annotated on the input time series.
+    """
 
     if (isinstance(df, DataFrame) and
         len(df.columns) == 1 and
@@ -128,7 +183,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
         s_h_esd_timestamps = detect_anoms(all_data[i], k=max_anoms,
                                           alpha=alpha,
                                           num_obs_per_period=period,
-                                          use_decomp=True, use_esd=False,
+                                          use_decomp=True,
                                           one_tail=anomaly_direction.one_tail,
                                           upper_tail=anomaly_direction.upper_tail,
                                           verbose=verbose)

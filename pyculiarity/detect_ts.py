@@ -16,6 +16,61 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
               piecewise_median_period_weeks=2, plot=False,
               y_log=False, xlabel = '', ylabel = 'count',
               title=None, verbose=False):
+    """
+    Anomaly Detection Using Seasonal Hybrid ESD Test
+    A technique for detecting anomalies in seasonal univariate time series where the input is a
+    series of <timestamp, count> pairs.
+
+    Args:
+
+    x: Time series as a two column data frame where the first column consists of the
+    timestamps and the second column consists of the observations.
+
+    max_anoms: Maximum number of anomalies that S-H-ESD will detect as a percentage of the
+    data.
+
+    direction: Directionality of the anomalies to be detected. Options are: ('pos' | 'neg' | 'both').
+
+    alpha: The level of statistical significance with which to accept or reject anomalies.
+
+    only_last: Find and report anomalies only within the last day or hr in the time series. Options: (None | 'day' | 'hr')
+
+    threshold: Only report positive going anoms above the threshold specified. Options are: (None | 'med_max' | 'p95' | 'p99')
+
+    e_value: Add an additional column to the anoms output containing the expected value.
+
+    longterm: Increase anom detection efficacy for time series that are greater than a month.
+
+    See Details below.
+    piecewise_median_period_weeks: The piecewise median time window as described in Vallis, Hochenbaum, and Kejariwal (2014). Defaults to 2.
+
+    plot: (Currently unsupported) A flag indicating if a plot with both the time series and the estimated anoms,
+    indicated by circles, should also be returned.
+
+    y_log: Apply log scaling to the y-axis. This helps with viewing plots that have extremely
+    large positive anomalies relative to the rest of the data.
+
+    xlabel: X-axis label to be added to the output plot.
+    ylabel: Y-axis label to be added to the output plot.
+
+    Details
+
+
+    'longterm' This option should be set when the input time series is longer than a month.
+    The option enables the approach described in Vallis, Hochenbaum, and Kejariwal (2014).
+    'threshold' Filter all negative anomalies and those anomalies whose magnitude is smaller
+    than one of the specified thresholds which include: the median
+    of the daily max values (med_max), the 95th percentile of the daily max values (p95), and the
+    99th percentile of the daily max values (p99).
+    'title' Title for the output plot.
+    'verbose' Enable debug messages
+
+    The returned value is a dictionary with the following components:
+      anoms: Data frame containing timestamps, values, and optionally expected values.
+      plot: A graphical object if plotting was requested by the user. The plot contains
+      the estimated anomalies annotated on the input time series
+    """
+
     if not isinstance(df, DataFrame):
         raise ValueError("data must be a single data frame.")
     else:
@@ -162,7 +217,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
 
         s_h_esd_timestamps = detect_anoms(all_data[i], k=max_anoms, alpha=alpha,
                                           num_obs_per_period=period,
-                                          use_decomp=True, use_esd=False,
+                                          use_decomp=True,
                                           one_tail=anomaly_direction.one_tail,
                                           upper_tail=anomaly_direction.upper_tail,
                                           verbose=verbose)
