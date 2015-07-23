@@ -225,8 +225,12 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
         seasonal_plus_trend = seasonal_plus_trend.append(data_decomp)
 
     # Cleanup potential duplicates
-    all_anoms.drop_duplicates(subset=['timestamp'])
-    seasonal_plus_trend.drop_duplicates(subset=['timestamp'])
+    try:
+        all_anoms.drop_duplicates(subset=['timestamp'])
+        seasonal_plus_trend.drop_duplicates(subset=['timestamp'])
+    except TypeError:
+        all_anoms.drop_duplicates(cols=['timestamp'])
+        seasonal_plus_trend.drop_duplicates(cols=['timestamp'])
 
 
     # -- If only_last was set by the user, create subset of

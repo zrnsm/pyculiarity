@@ -35,7 +35,7 @@ def stl(data, ns, np=None):
     stl_ = robjects.r['stl']
 
     if isinstance(data.index[0], int64):
-        start = data.index[0]
+        start = int(data.index[0])
     else:
         start = robjects.IntVector([data.index[0].year, data.index[0].month])
 
