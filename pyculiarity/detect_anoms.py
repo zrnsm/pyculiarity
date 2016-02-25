@@ -1,17 +1,17 @@
-from date_utils import format_timestamp
 from itertools import groupby
-from math import trunc, sqrt
-from r_stl import stl
+from math import sqrt
+
+from future.utils import lmap, lrange
 from scipy.stats import t as student_t
 from statsmodels.robust.scale import mad
 import numpy as np
 import pandas as ps
-import statsmodels.api as sm
-import sys
+
+from pyculiarity.stl import stl
+
 
 def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
-                 use_decomp=True, one_tail=True,
-                 upper_tail=True, verbose=False):
+                 use_decomp=True, one_tail=True, upper_tail=True, verbose=False):
     """
     # Detects anomalies in a time series using S-H-ESD.
     #
@@ -27,6 +27,7 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
     # Returns:
     #   A dictionary containing the anomalies (anoms) and decomposition components (stl).
     """
+
     if num_obs_per_period is None:
         raise ValueError("must supply period length for time series decomposition")
 
@@ -35,15 +36,14 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
 
     num_obs = len(data)
 
-    # Check to make sure we have at least two periods worth of data for anomaly context
+    # Check to make sure we have at least two periods worth of data for
+    # anomaly context
     if num_obs < num_obs_per_period * 2:
-        raise ValueError("Anom detection needs at least 2 periods worth of data")
-
-    # Check if our timestamps are posix
-    posix_timestamp = data.dtypes[0].type is np.datetime64
+        print("Anom detection needs at least 2 periods worth of data")
+        return None
 
     # run length encode result of isnull, check for internal nulls
-    if (len(map(lambda x: x[0], list(groupby(ps.isnull(
+    if (len(lmap(lambda x: x[0], list(groupby(ps.isnull(
             ps.concat([ps.Series([np.nan]),
                        data.value,
                        ps.Series([np.nan])])))))) > 3):
@@ -63,13 +63,13 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
         }
         resample_period = resample_period.get(num_obs_per_period)
         if not resample_period:
-            raise ValueError('Unsupported resample period: %d' % resample_period)
+            raise ValueError('Unsupported resample period: %d' %resample_period)
         data = data.resample(resample_period)
 
+    decomp = stl(data.value, np=num_obs_per_period)
 
-    decomp = stl(data.value, "periodic", np=num_obs_per_period)
-
-    # Remove the seasonal component, and the median of the data to create the univariate remainder
+    # Remove the seasonal component, and the median of the data to create the
+    # univariate remainder
     d = {
         'timestamp': data.index,
         'value': data.value - decomp['seasonal'] - data.value.median()
@@ -86,17 +86,19 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
     max_outliers = int(num_obs * k)
 
     if max_outliers == 0:
-        raise ValueError("With longterm=TRUE, AnomalyDetection splits the data into 2 week periods by default. You have %d observations in a period, which is too few. Set a higher piecewise_median_period_weeks." % num_obs)
+        raise ValueError(
+            "With longterm=TRUE, AnomalyDetection splits the data into 2 week periods by default. You have %d observations in a period, which is too few. Set a higher piecewise_median_period_weeks." %
+            num_obs)
 
-    ## Define values and vectors.
+    # Define values and vectors.
     n = len(data.timestamp)
-    R_idx = range(max_outliers)
+    R_idx = lrange(max_outliers)
 
     num_anoms = 0
 
     # Compute test statistic until r=max_outliers values have been
     # removed from the sample.
-    for i in range(1, max_outliers + 1):
+    for i in lrange(1, max_outliers + 1):
         if one_tail:
             if upper_tail:
                 ares = data.value - data.value.median()
@@ -110,7 +112,7 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
         if data_sigma == 0:
             break
 
-        ares = ares / float(data_sigma)
+        ares /= float(data_sigma)
 
         R = ares.max()
 

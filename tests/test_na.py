@@ -1,12 +1,15 @@
-from nose.tools import eq_, raises
-from pyculiarity import detect_ts, detect_vec
 from unittest import TestCase
-import pandas as pd
 import os
+
+from nose.tools import eq_, raises
+import pandas as pd
 import numpy as np
+
+from pyculiarity import detect_ts
 
 
 class TestNAs(TestCase):
+
     def setUp(self):
         self.path = os.path.dirname(os.path.realpath(__file__))
         self.raw_data = pd.read_csv(os.path.join(self.path,
@@ -14,13 +17,13 @@ class TestNAs(TestCase):
                                     usecols=['timestamp', 'count'])
 
     def test_handling_of_leading_trailing_nas(self):
-        for i in range(10) + [len(self.raw_data) - 1]:
+        for i in list(range(10)) + [len(self.raw_data) - 1]:
             self.raw_data.set_value(i, 'count', np.nan)
 
         results = detect_ts(self.raw_data, max_anoms=0.02,
                             direction='both', plot=False)
         eq_(len(results['anoms'].columns), 2)
-        eq_(len(results['anoms'].iloc[:,1]), 131)
+        eq_(len(results['anoms'].iloc[:, 1]), 114)
 
     @raises(ValueError)
     def test_handling_of_middle_nas(self):

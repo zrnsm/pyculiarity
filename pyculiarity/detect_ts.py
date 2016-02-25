@@ -1,21 +1,21 @@
 # -*- coding: utf-8 -*-
 from collections import namedtuple
-from date_utils import format_timestamp, get_gran, date_format, datetimes_from_ts
-from detect_anoms import detect_anoms
-from math import ceil
-from pandas import DataFrame
-from pandas.lib import Timestamp
 import datetime
+import copy
+
+from past.builtins import basestring
+from pandas import DataFrame, to_datetime
+from pandas.lib import Timestamp
 import numpy as np
+
+from pyculiarity.date_utils import get_gran
+from pyculiarity.detect_anoms import detect_anoms
 
 Direction = namedtuple('Direction', ['one_tail', 'upper_tail'])
 
-def detect_ts(df, max_anoms=0.10, direction='pos',
-              alpha=0.05, only_last=None, threshold=None,
-              e_value=False, longterm=False,
-              piecewise_median_period_weeks=2, plot=False,
-              y_log=False, xlabel = '', ylabel = 'count',
-              title=None, verbose=False):
+
+def detect_ts(df, max_anoms=0.10, direction='pos', alpha=0.05, threshold=None, e_value=False, longterm=False,
+              piecewise_median_period_weeks=2, granularity='day', verbose=False, inplace=True):
     """
     Anomaly Detection Using Seasonal Hybrid ESD Test
     A technique for detecting anomalies in seasonal univariate time series where the input is a
@@ -23,7 +23,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
 
     Args:
 
-    x: Time series as a two column data frame where the first column consists of the
+    x: Time series as a two column data frame where the first column consists of the integer UTC Unix
     timestamps and the second column consists of the observations.
 
     max_anoms: Maximum number of anomalies that S-H-ESD will detect as a percentage of the
@@ -42,16 +42,8 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
     longterm: Increase anom detection efficacy for time series that are greater than a month.
 
     See Details below.
-    piecewise_median_period_weeks: The piecewise median time window as described in Vallis, Hochenbaum, and Kejariwal (2014). Defaults to 2.
-
-    plot: (Currently unsupported) A flag indicating if a plot with both the time series and the estimated anoms,
-    indicated by circles, should also be returned.
-
-    y_log: Apply log scaling to the y-axis. This helps with viewing plots that have extremely
-    large positive anomalies relative to the rest of the data.
-
-    xlabel: X-axis label to be added to the output plot.
-    ylabel: Y-axis label to be added to the output plot.
+    piecewise_median_period_weeks: The piecewise median time window as described in Vallis, Hochenbaum, and Kejariwal
+    (2014). Defaults to 2.
 
     Details
 
@@ -62,8 +54,6 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
     than one of the specified thresholds which include: the median
     of the daily max values (med_max), the 95th percentile of the daily max values (p95), and the
     99th percentile of the daily max values (p99).
-    'title' Title for the output plot.
-    'verbose' Enable debug messages
 
     The returned value is a dictionary with the following components:
       anoms: Data frame containing timestamps, values, and optionally expected values.
@@ -74,39 +64,35 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
     if not isinstance(df, DataFrame):
         raise ValueError("data must be a single data frame.")
     else:
-        if len(df.columns) != 2 or not df.iloc[:,1].map(np.isreal).all():
-            raise ValueError(("data must be a 2 column data.frame, with the"
-                              "first column being a set of timestamps, and "
-                              "the second coloumn being numeric values."))
+        if len(df.columns) != 2 or not df.iloc[:, 1].map(np.isreal).all():
+            raise ValueError('''data must be a 2 column data.frame, with the first column being a set of timestamps, and
+                                the second coloumn being numeric values.''')
 
-        if (not (df.dtypes[0].type is np.datetime64)
-            and not (df.dtypes[0].type is np.int64)):
-            df = format_timestamp(df)
+        if not (df.dtypes[0].type is np.float64) and not (df.dtypes[0].type is np.int64):
+            raise ValueError('''The input timestamp column must be a float or integer of the unix timestamp, not date
+                                time columns, date strings or pd.TimeStamp columns.''')
 
-    if list(df.columns.values) != ["timestamp", "value"]:
-        df.columns = ["timestamp", "value"]
+    if not inplace:
+        df = copy.deepcopy(df)
+
+    # change the column names in place, rather than copying the entire dataset, but save the headers to replace them.
+    orig_header = df.columns.values
+    df.rename(columns={df.columns.values[0]: "timestamp", df.columns.values[1]: "value"}, inplace=True)
 
     # Sanity check all input parameters
     if max_anoms > 0.49:
         length = len(df.value)
-        raise ValueError(
-            ("max_anoms must be less than 50% of "
-             "the data points (max_anoms =%f data_points =%s).")
-                         % (round(max_anoms * length, 0), length))
+        raise ValueError("max_anoms must be less than 50%% of the data points (max_anoms =%f data_points =%s)." % (round(max_anoms * length, 0), length))
 
-    if not direction in ['pos', 'neg', 'both']:
+    if direction not in ['pos', 'neg', 'both']:
         raise ValueError("direction options are: pos | neg | both.")
 
     if not (0.01 <= alpha or alpha <= 0.1):
         if verbose:
             import warnings
-            warnings.warn(("alpha is the statistical signifigance, "
-                           "and is usually between 0.01 and 0.1"))
+            warnings.warn("alpha is the statistical signifigance, and is usually between 0.01 and 0.1")
 
-    if only_last and not only_last in ['day', 'hr']:
-        raise ValueError("only_last must be either 'day' or 'hr'")
-
-    if not threshold in [None,'med_max','p95','p99']:
+    if threshold not in [None, 'med_max', 'p95', 'p99']:
         raise ValueError("threshold options are: None | med_max | p95 | p99")
 
     if not isinstance(e_value, bool):
@@ -119,49 +105,22 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         raise ValueError(
             "piecewise_median_period_weeks must be at greater than 2 weeks")
 
-    if not isinstance(plot, bool):
-        raise ValueError("plot must be a boolean")
-
-    if not isinstance(y_log, bool):
-        raise ValueError("y_log must be a boolean")
-
-    if not isinstance(xlabel, basestring):
-        raise ValueError("xlabel must be a string")
-
-    if not isinstance(ylabel, basestring):
-        raise ValueError("ylabel must be a string")
-
-    if title and not isinstance(title, basestring):
-        raise ValueError("title must be a string")
-
-    if not title:
-        title = ''
-    else:
-        title = title + " : "
-
-    gran = get_gran(df)
-
-    if gran == "day":
-        num_days_per_line = 7
-        if isinstance(only_last, basestring) and only_last == 'hr':
-            only_last = 'day'
-    else:
-        num_days_per_line = 1
-
-    if gran == 'sec':
-        df.timestamp = date_format(df.timestamp, "%Y-%m-%d %H:%M:00")
-        df = format_timestamp(df.groupby('timestamp').aggregate(np.sum))
-
-    # if the data is daily, then we need to bump
-    # the period to weekly to get multiple examples
+    # if the data is daily, then we need to bump the period to weekly to get multiple examples
+    gran = granularity
     gran_period = {
+        'ms': 60000,
+        'sec': 3600,
         'min': 1440,
         'hr': 24,
         'day': 7
     }
     period = gran_period.get(gran)
     if not period:
-        raise ValueError('%s granularity detected. This is currently not supported.' % gran)
+        raise ValueError('%s granularity detected. This is currently not supported.' % (gran, ))
+
+    # now convert the timestamp column into a proper timestamp
+    df['timestamp'] = df['timestamp'].map(lambda x: datetime.datetime.utcfromtimestamp(x))
+
     num_obs = len(df.value)
 
     clamp = (1 / float(num_obs))
@@ -182,19 +141,13 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
 
         for j in range(0, len(df.timestamp), num_obs_in_period):
             start_date = df.timestamp.iget(j)
-            end_date = min(start_date
-                           + datetime.timedelta(days=num_obs_in_period),
-                           df.timestamp.iget(-1))
+            end_date = min(start_date + datetime.timedelta(days=num_obs_in_period), df.timestamp.iget(-1))
 
-            # if there is at least 14 days left, subset it,
-            # otherwise subset last_date - 14days
+            # if there is at least 14 days left, subset it, otherwise subset last_date - 14days
             if (end_date - start_date).days == num_days_in_period:
-                sub_df = df[(df.timestamp >= start_date)
-                            & (df.timestamp < end_date)]
+                sub_df = df[(df.timestamp >= start_date) & (df.timestamp < end_date)]
             else:
-                sub_df = df[(df.timestamp >
-                     (last_date - datetime.timedelta(days=num_days_in_period)))
-                    & (df.timestamp <= last_date)]
+                sub_df = df[(df.timestamp > (last_date - datetime.timedelta(days=num_days_in_period))) & (df.timestamp <= last_date)]
             all_data.append(sub_df)
     else:
         all_data = [df]
@@ -202,8 +155,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
     all_anoms = DataFrame(columns=['timestamp', 'value'])
     seasonal_plus_trend = DataFrame(columns=['timestamp', 'value'])
 
-    # Detect anomalies on all data (either entire data in one-pass,
-    # or in 2 week blocks if longterm=TRUE)
+    # Detect anomalies on all data (either entire data in one-pass, or in 2 week blocks if longterm=TRUE)
     for i in range(len(all_data)):
         directions = {
             'pos': Direction(True, True),
@@ -212,25 +164,27 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         }
         anomaly_direction = directions[direction]
 
-        # detect_anoms actually performs the anomaly detection and
-        # returns the results in a list containing the anomalies
-        # as well as the decomposed components of the time series
-        # for further analysis.
+        # detect_anoms actually performs the anomaly detection and returns the result in a list containing the anomalies
+        # as well as the decomposed components of the time series for further analysis.
 
-        s_h_esd_timestamps = detect_anoms(all_data[i], k=max_anoms, alpha=alpha,
+        s_h_esd_timestamps = detect_anoms(all_data[i],
+                                          k=max_anoms,
+                                          alpha=alpha,
                                           num_obs_per_period=period,
                                           use_decomp=True,
                                           one_tail=anomaly_direction.one_tail,
                                           upper_tail=anomaly_direction.upper_tail,
                                           verbose=verbose)
+        if s_h_esd_timestamps is None:
+            return {
+                'anoms': DataFrame(columns=["timestamp", "anoms"])
+            }
 
-        # store decomposed components in local variable and overwrite
-        # s_h_esd_timestamps to contain only the anom timestamps
+        # store decomposed comps in local variable and overwrite s_h_esd_timestamps to contain only the anom timestamps
         data_decomp = s_h_esd_timestamps['stl']
         s_h_esd_timestamps = s_h_esd_timestamps['anoms']
 
-        # -- Step 3: Use detected anomaly timestamps to extract the actual
-        # anomalies (timestamp and value) from the data
+        # -- Step 3: Use detected anomaly timestamps to extract the actual anomalies (timestamp and value) from the data
         if s_h_esd_timestamps:
             anoms = all_data[i][all_data[i].timestamp.isin(s_h_esd_timestamps)]
         else:
@@ -239,10 +193,10 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         # Filter the anomalies using one of the thresholding functions if applicable
         if threshold:
             # Calculate daily max values
-            periodic_maxes = df.groupby(
-                df.timestamp.map(Timestamp.date)).aggregate(np.max).value
+            periodic_maxes = df.groupby(df.timestamp.map(Timestamp.date)).aggregate(np.max).value
 
             # Calculate the threshold set by the user
+            thresh = 0.5
             if threshold == 'med_max':
                 thresh = periodic_maxes.median()
             elif threshold == 'p95':
@@ -264,50 +218,14 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         all_anoms.drop_duplicates(cols=['timestamp'])
         seasonal_plus_trend.drop_duplicates(cols=['timestamp'])
 
-    # -- If only_last was set by the user,
-    # create subset of the data that represent the most recent day
-    if only_last:
-        start_date = df.timestamp.iget(-1) - datetime.timedelta(days=7)
-        start_anoms = df.timestamp.iget(-1) - datetime.timedelta(days=1)
-        if gran is "day":
-            breaks = 3 * 12
-            num_days_per_line = 7
-        else:
-            if only_last == 'day':
-                breaks = 12
-            else:
-                start_date = df.timestamp.iget(-1) - datetime.timedelta(days=2)
-                # truncate to days
-                start_date = datetime.date(start_date.year,
-                                           start_date.month, start_date.day)
-                start_anoms = (df.timestamp.iget(-1)
-                               - datetime.timedelta(hours=1))
-                breaks = 3
-
-        # subset the last days worth of data
-        x_subset_single_day = df[df.timestamp > start_anoms]
-        # When plotting anoms for the last day only
-        # we only show the previous weeks data
-        x_subset_week = df[(df.timestamp <= start_anoms)
-                           & (df.timestamp > start_date)]
-        if len(all_anoms) > 0:
-            all_anoms = all_anoms[all_anoms.timestamp >=
-                                  x_subset_single_day.timestamp.iget(0)]
-        num_obs = len(x_subset_single_day.value)
-
     # Calculate number of anomalies as a percentage
     anom_pct = (len(df.value) / float(num_obs)) * 100
 
-    if anom_pct == 0:
-        return {
-            "anoms": None,
-            "plot": None
-        }
+    # name the columns back
+    df.rename(columns={"timestamp": orig_header[0], "value": orig_header[1]}, inplace=True)
 
-    # The original R implementation handles plotting here.
-    # Plotting is currently not implemented in this version.
-    # if plot:
-    #     plot_something()
+    if anom_pct == 0:
+        return {"anoms": None}
 
     all_anoms.index = all_anoms.timestamp
 
@@ -324,9 +242,11 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
             'timestamp': all_anoms.timestamp,
             'anoms': all_anoms.value
         }
+
     anoms = DataFrame(d, index=d['timestamp'].index)
 
-    return {
-        'anoms': anoms,
-        'plot': None
-    }
+    # convert timestamps back to unix time
+    anoms['timestamp'] = anoms['timestamp'].astype(np.int64)
+    anoms['timestamp'] = anoms['timestamp'].map(lambda x: x * 10e-10)
+
+    return {'anoms': anoms}
