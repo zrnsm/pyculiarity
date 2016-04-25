@@ -78,7 +78,7 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
 
     p = {
         'timestamp': decomp.index,
-        'value': (decomp['trend'] + decomp['seasonal']).truncate().convert_objects(convert_numeric=True)
+        'value': ps.to_numeric((decomp['trend'] + decomp['seasonal']).truncate())
     }
     data_decomp = ps.DataFrame(p)
 
