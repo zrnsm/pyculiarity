@@ -267,8 +267,8 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
     # -- If only_last was set by the user,
     # create subset of the data that represent the most recent day
     if only_last:
-        start_date = df.timestamp.iget(-1) - datetime.timedelta(days=7)
-        start_anoms = df.timestamp.iget(-1) - datetime.timedelta(days=1)
+        start_date = df.timestamp.iloc[-1] - datetime.timedelta(days=7)
+        start_anoms = df.timestamp.iloc[-1] - datetime.timedelta(days=1)
         if gran is "day":
             breaks = 3 * 12
             num_days_per_line = 7
@@ -292,7 +292,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
                            & (df.timestamp > start_date)]
         if len(all_anoms) > 0:
             all_anoms = all_anoms[all_anoms.timestamp >=
-                                  x_subset_single_day.timestamp.iget(0)]
+                                  x_subset_single_day.timestamp.iloc[0]]
         num_obs = len(x_subset_single_day.value)
 
     # Calculate number of anomalies as a percentage
