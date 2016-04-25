@@ -176,15 +176,15 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
             num_obs_in_period = period * 7 * piecewise_median_period_weeks
             num_days_in_period = 7 * piecewise_median_period_weeks
 
-        last_date = df.timestamp.iget(-1)
+        last_date = df.timestamp.iloc[-1]
 
         all_data = []
 
         for j in range(0, len(df.timestamp), num_obs_in_period):
-            start_date = df.timestamp.iget(j)
+            start_date = df.timestamp.iloc[j]
             end_date = min(start_date
                            + datetime.timedelta(days=num_obs_in_period),
-                           df.timestamp.iget(-1))
+                           df.timestamp.iloc[-1])
 
             # if there is at least 14 days left, subset it,
             # otherwise subset last_date - 14days
@@ -276,11 +276,11 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
             if only_last == 'day':
                 breaks = 12
             else:
-                start_date = df.timestamp.iget(-1) - datetime.timedelta(days=2)
+                start_date = df.timestamp.iloc[-1] - datetime.timedelta(days=2)
                 # truncate to days
                 start_date = datetime.date(start_date.year,
                                            start_date.month, start_date.day)
-                start_anoms = (df.timestamp.iget(-1)
+                start_anoms = (df.timestamp.iloc[-1]
                                - datetime.timedelta(hours=1))
                 breaks = 3
 
