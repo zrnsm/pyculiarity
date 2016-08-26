@@ -37,5 +37,6 @@ setup(
                       'statsmodels', 'rpy2'],
     extras_require={
         'test': ['nose', 'mock']
-    }
+    },
+    use_2to3 = True
 )
