@@ -152,7 +152,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
     if longterm_period:
         all_data = []
         for j in range(0, len(df.timestamp), longterm_period):
-            start_index = df.timestamp.iget(j)
+            start_index = df.timestamp.iloc[j]
             end_index = min((start_index + longterm_period), num_obs)
             if (end_index - start_index) == longterm_period:
                 sub_df = df[(df.timestamp >= start_index)
@@ -252,7 +252,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
         }
         x_subset_previous = DataFrame(d, index=d['timestamp'])
         all_anoms = all_anoms[all_anoms.timestamp
-                              >= x_subset_single_period.timestamp.iget(0)]
+                              >= x_subset_single_period.timestamp.iloc[0]]
         num_obs = len(x_subset_single_period.value)
 
     # Calculate number of anomalies as a percentage

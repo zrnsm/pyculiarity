@@ -183,7 +183,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         for j in range(0, len(df.timestamp), num_obs_in_period):
             start_date = df.timestamp.iloc[j]
             end_date = min(start_date
-                           + datetime.timedelta(days=num_obs_in_period),
+                           + datetime.timedelta(days=num_days_in_period),
                            df.timestamp.iloc[-1])
 
             # if there is at least 14 days left, subset it,
@@ -258,11 +258,11 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
 
     # Cleanup potential duplicates
     try:
-        all_anoms.drop_duplicates(subset=['timestamp'])
-        seasonal_plus_trend.drop_duplicates(subset=['timestamp'])
+        all_anoms.drop_duplicates(subset=['timestamp'], inplace=True)
+        seasonal_plus_trend.drop_duplicates(subset=['timestamp'], inplace=True)
     except TypeError:
-        all_anoms.drop_duplicates(cols=['timestamp'])
-        seasonal_plus_trend.drop_duplicates(cols=['timestamp'])
+        all_anoms.drop_duplicates(cols=['timestamp'], inplace=True)
+        seasonal_plus_trend.drop_duplicates(cols=['timestamp'], inplace=True)
 
     # -- If only_last was set by the user,
     # create subset of the data that represent the most recent day
