@@ -4,7 +4,7 @@ from date_utils import format_timestamp, get_gran, date_format, datetimes_from_t
 from detect_anoms import detect_anoms
 from math import ceil
 from pandas import DataFrame
-from pandas.lib import Timestamp
+from pandas._libs.lib import Timestamp
 import datetime
 import numpy as np
 
