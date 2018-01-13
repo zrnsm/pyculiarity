@@ -1,7 +1,7 @@
-from date_utils import format_timestamp
+from pyculiarity.date_utils import format_timestamp
+from pyculiarity.r_stl import stl
 from itertools import groupby
 from math import trunc, sqrt
-from r_stl import stl
 from scipy.stats import t as student_t
 from statsmodels.robust.scale import mad
 import numpy as np
@@ -43,10 +43,10 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
     posix_timestamp = data.dtypes[0].type is np.datetime64
 
     # run length encode result of isnull, check for internal nulls
-    if (len(map(lambda x: x[0], list(groupby(ps.isnull(
+    if (len(list(map(lambda x: x[0], list(groupby(ps.isnull(
             ps.concat([ps.Series([np.nan]),
                        data.value,
-                       ps.Series([np.nan])])))))) > 3):
+                       ps.Series([np.nan])]))))))) > 3):
         raise ValueError("Data contains non-leading NAs. We suggest replacing NAs with interpolated values (see na.approx in Zoo package).")
     else:
         data = data.dropna()
@@ -90,7 +90,7 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
 
     ## Define values and vectors.
     n = len(data.timestamp)
-    R_idx = range(max_outliers)
+    R_idx = list(range(max_outliers))
 
     num_anoms = 0
 

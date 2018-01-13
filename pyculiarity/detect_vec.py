@@ -1,10 +1,11 @@
 # -*- coding: utf-8 -*-
 from collections import namedtuple
-from detect_anoms import detect_anoms
+from pyculiarity.detect_anoms import detect_anoms
 from math import ceil
 from pandas import DataFrame, Series
-from pandas.lib import Timestamp
+from pandas._libs.lib import Timestamp
 import numpy as np
+from six import string_types
 
 Direction = namedtuple('Direction', ['one_tail', 'upper_tail'])
 
@@ -122,13 +123,13 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
     if not isinstance(y_log, bool):
         raise ValueError("y_log must be a boolean")
 
-    if not isinstance(xlabel, basestring):
+    if not isinstance(xlabel, string_types):
         raise ValueError("xlabel must be a string")
 
-    if not isinstance(ylabel, basestring):
+    if not isinstance(ylabel, string_types):
         raise ValueError("ylabel must be a string")
 
-    if title and not isinstance(title, basestring):
+    if title and not isinstance(title, string_types):
         raise ValueError("title must be a string")
 
     if not title:
@@ -204,10 +205,11 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
         # functions if applicable
         if threshold:
             # Calculate daily max values
-            if isinstance(all_data[i].index[0], np.int64):
-                group = all_data[i].timestamp.map(lambda t: t / period)
-            else:
+            if isinstance(all_data[i].index[0], Timestamp):
                 group = all_data[i].timestamp.map(Timestamp.date)
+            else:
+                group = all_data[i].timestamp.map(lambda t: t / period)
+
             periodic_maxes = df.groupby(group).aggregate(np.max).value
 
             # Calculate the threshold set by the user

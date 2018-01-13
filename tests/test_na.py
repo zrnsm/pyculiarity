@@ -14,8 +14,8 @@ class TestNAs(TestCase):
                                     usecols=['timestamp', 'count'])
 
     def test_handling_of_leading_trailing_nas(self):
-        for i in range(10) + [len(self.raw_data) - 1]:
-            self.raw_data.set_value(i, 'count', np.nan)
+        for i in list(range(10)) + [len(self.raw_data) - 1]:
+            self.raw_data.at[i, 'count'] = np.nan
 
         results = detect_ts(self.raw_data, max_anoms=0.02,
                             direction='both', plot=False)
@@ -24,5 +24,5 @@ class TestNAs(TestCase):
 
     @raises(ValueError)
     def test_handling_of_middle_nas(self):
-        self.raw_data.set_value(len(self.raw_data) / 2, 'count', np.nan)
+        self.raw_data.at[len(self.raw_data) / 2, 'count'] = np.nan
         detect_ts(self.raw_data, max_anoms=0.02, direction='both')

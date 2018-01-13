@@ -34,7 +34,7 @@ setup(
     keywords='data anomaly detection pandas timeseries',
     packages=['pyculiarity'],
     install_requires=['numpy', 'scipy', 'pandas', 'pytz',
-                      'statsmodels', 'rpy2'],
+                      'statsmodels', 'rpy2==2.8.6'],
     extras_require={
         'test': ['nose', 'mock']
     }
