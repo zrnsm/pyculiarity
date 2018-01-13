@@ -183,7 +183,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
         for j in range(0, len(df.timestamp), num_obs_in_period):
             start_date = df.timestamp.iloc[j]
             end_date = min(start_date
-                           + datetime.timedelta(days=num_obs_in_period),
+                           + datetime.timedelta(days=num_days_in_period),
                            df.timestamp.iloc[-1])
 
             # if there is at least 14 days left, subset it,
