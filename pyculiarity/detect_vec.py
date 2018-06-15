@@ -3,7 +3,7 @@ from collections import namedtuple
 from pyculiarity.detect_anoms import detect_anoms
 from math import ceil
 from pandas import DataFrame, Series
-from pandas._libs.lib import Timestamp
+from pandas._libs.tslibs.timestamps import Timestamp
 import numpy as np
 from six import string_types
 
