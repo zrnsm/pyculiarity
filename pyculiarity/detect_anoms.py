@@ -1,5 +1,5 @@
 from pyculiarity.date_utils import format_timestamp
-from pyculiarity.r_stl import stl
+from rstl import STL
 from itertools import groupby
 from math import trunc, sqrt
 from scipy.stats import t as student_t
@@ -67,18 +67,18 @@ def detect_anoms(data, k=0.49, alpha=0.05, num_obs_per_period=None,
         data = data.resample(resample_period)
 
 
-    decomp = stl(data.value, "periodic", np=num_obs_per_period)
+    decomp = STL(data.value, num_obs_per_period, "periodic", robust=True)
 
     # Remove the seasonal component, and the median of the data to create the univariate remainder
     d = {
         'timestamp': data.index,
-        'value': data.value - decomp['seasonal'] - data.value.median()
+        'value': data.value - decomp.seasonal - data.value.median()
     }
     data = ps.DataFrame(d)
 
     p = {
-        'timestamp': decomp.index,
-        'value': ps.to_numeric((decomp['trend'] + decomp['seasonal']).truncate())
+        'timestamp': data.index,
+        'value': ps.to_numeric(ps.Series(decomp.trend + decomp.seasonal).truncate())
     }
     data_decomp = ps.DataFrame(p)
 
