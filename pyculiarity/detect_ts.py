@@ -4,7 +4,7 @@ from pyculiarity.date_utils import format_timestamp, get_gran, date_format, date
 from pyculiarity.detect_anoms import detect_anoms
 from math import ceil
 from pandas import DataFrame
-from pandas._libs.lib import Timestamp
+from pandas._libs.tslibs.timestamps import Timestamp
 import datetime
 import numpy as np
 from six import string_types
