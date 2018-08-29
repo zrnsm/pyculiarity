@@ -207,7 +207,7 @@ def detect_vec(df, max_anoms=0.10, direction='pos',
             if isinstance(all_data[i].index[0], Timestamp):
                 group = all_data[i].timestamp.map(Timestamp.date)
             else:
-                group = all_data[i].timestamp.map(lambda t: t / period)
+                group = all_data[i].timestamp.map(lambda t: int(t / period))
 
             periodic_maxes = df.groupby(group).aggregate(np.max).value
 
