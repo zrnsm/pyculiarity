@@ -319,6 +319,7 @@ def detect_ts(df, max_anoms=0.10, direction='pos',
                 seasonal_plus_trend.timestamp.isin(
                     all_anoms.timestamp)].value
         }
+        d['expected_value'].index = d['timestamp'].index
     else:
         d = {
             'timestamp': all_anoms.timestamp,
