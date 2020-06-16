@@ -18,20 +18,19 @@ def format_timestamp(indf, index=0):
 
     column = indf.iloc[:,index]
 
-    if match("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2} \\+\\d{4}$",
-             column[0]):
+    if match("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2} \\+\\d{4}$",str(column[0])):
         column = date_format(column, "%Y-%m-%d %H:%M:%S")
-    elif match("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$", column[0]):
+    elif match("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}:\\d{2}$", str(column[0])):
         column = date_format(column, "%Y-%m-%d %H:%M:%S")
-    elif match("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$", column[0]):
+    elif match("^\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}$", str(column[0])):
         column = date_format(column, "%Y-%m-%d %H:%M")
-    elif match("^\\d{2}/\\d{2}/\\d{2}$", column[0]):
+    elif match("^\\d{2}/\\d{2}/\\d{2}$", str(column[0])):
         column = date_format(column, "%m/%d/%y")
-    elif match("^\\d{2}/\\d{2}/\\d{4}$", column[0]):
+    elif match("^\\d{2}/\\d{2}/\\d{4}$", str(column[0])):
         column = date_format(column, "%Y%m%d")
-    elif match("^\\d{4}\\d{2}\\d{2}$", column[0]):
+    elif match("^\\d{4}\\d{2}\\d{2}$", str(column[0])):
         column = date_format(column, "%Y/%m/%d/%H")
-    elif match("^\\d{10}$", column[0]):
+    elif match("^\\d{10}$", str(column[0])):
         column = datetimes_from_ts(column)
 
     indf.iloc[:,index] = column
